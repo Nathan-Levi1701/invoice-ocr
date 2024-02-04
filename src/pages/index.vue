@@ -73,6 +73,7 @@ const resetIndicators = () => {
   indicators.overallStartTime = 0;
   indicators.processedLength = 0;
   indicators.overallProcess = 0;
+  indicators.overallElapsedTime = 0;
   formattedTime.value = '00:00.000';
   indicators.individualProcess = 0;
   generatedFile.file = '';

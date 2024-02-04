@@ -6,14 +6,14 @@ const toggle = ref<boolean>(false)
 
 <template>
   <Header :toggle="toggle" @toggle="toggle = !toggle"/>
-  <v-layout :style="{ height: '100%', background: 'whitesmoke' }">
+  <v-layout :style="{ height: '100%', backgroundColor: '#F6F6F6' }">
     <NavigationDrawer :toggle="toggle" @toggle="toggle = !toggle"/>
     <v-main>
       <router-view />
     </v-main>
   </v-layout>
 
-  <Footer />
+  <!-- <Footer /> -->
 </template>
 
 <style lang="scss">

@@ -2,16 +2,10 @@
 </script>
 
 <template>
-  <v-footer class="flex flex-column bg-white w-full">
-    <div class="w-full bg-secondary">
+  <v-footer class="flex flex-column w-full" color="secondary">
+    <div class="w-full">
       <div class="footer-lower">
-        <div class="col md:text-left">
-          <span class="text-body-2">
-            © {{ new Date().getFullYear() }} Rotek Dog Club. All Rights Reserved
-          </span>
-        </div>
-
-        <div class="col md:text-right">
+          <div class="col md:text-right">
           <span class="text-body-2">
             Website by Nathan Levi
           </span>
