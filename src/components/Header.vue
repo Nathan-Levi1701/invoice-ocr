@@ -14,7 +14,7 @@ import logo from '/assets/logo.png'
         <router-link :style="{ height: '60%', width: 'auto' }" :to="{ path: '/' }">
           <img class="h-full w-auto hidden xxs:block" :src="logo" alt="">
         </router-link>
-        <h5 class="ml-6 text-h5 text-primary font-bold">
+        <h5 class="ml-6 text-h5 text-black font-bold">
           Invoice OCR Tool
         </h5>
       </div>

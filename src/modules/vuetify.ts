@@ -13,15 +13,16 @@ export const install: VuetifyModule = ({ app, isClient }) => {
     const theme: ThemeDefinition = {
       dark: false,
       colors: {
+        primary: '#ba2743',
+        secondary: '#8a9bb5',
+        'accent': '#5d74b7',
+        
+
         background: '#F6F6F6',
         surface: '#FFFFFF',
-        primary: '#000000',
-        'primary-darken-1': '#2c85d1',
-        secondary: '#e91e63',
-        'secondary-darken-1': '#018786',
+
         error: '#B00020',
-        info: '#2196F3',
-        success: '#4CAF50',
+        success: '#52b256',
         warning: '#FB8C00',
       },
     }

@@ -56,7 +56,7 @@ const onSubmit = async (value: any) => {
             </p>
           </v-card-subtitle> -->
 
-          <v-form ref="uploadForm">
+          <v-form ref="uploadForm" class="overflow-auto">
             <v-file-input v-model="dialogData.images" accept=".png" counter label="Select images to upload" :rules="[v => v.length > 0 || 'Photos are required']"
               multiple chips prepend-icon="mdi-upload" variant="solo" :show-size="1000">
               <template #selection="{ fileNames }">
@@ -71,7 +71,7 @@ const onSubmit = async (value: any) => {
         </div>
         <div class="dialog_actions">
           <v-btn variant="tonal" @click="onSubmit(false)">Close</v-btn>
-          <v-btn color="secondary" @click="onSubmit(dialogData)">Upload</v-btn>
+          <v-btn color="primary" @click="onSubmit(dialogData)">Upload</v-btn>
         </div>
       </v-card-item>
     </v-card>
@@ -87,6 +87,10 @@ const onSubmit = async (value: any) => {
 
   .v-card-subtitle {
     @apply mt-3;
+  }
+
+  .v-form {
+    max-height: 60vh;
   }
 
   .dialog {

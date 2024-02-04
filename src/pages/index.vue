@@ -43,12 +43,16 @@ const indicators = reactive({
 })
 
 const timerRunning = ref(false);
-const formattedTime = ref('00:00.000');
+const formattedTime = ref('00:00.00');
+
+const stopAllProcessing = ref(false);
 
 const generatedFile = reactive<any>({
   file: '',
   url: ''
 });
+
+const scheduler = ref<Tesseract.Scheduler>();
 
 const startTimer = () => {
   indicators.overallStartTime = performance.now() - indicators.overallElapsedTime;
@@ -74,7 +78,7 @@ const resetIndicators = () => {
   indicators.processedLength = 0;
   indicators.overallProcess = 0;
   indicators.overallElapsedTime = 0;
-  formattedTime.value = '00:00.000';
+  formattedTime.value = '00:00.00';
   indicators.individualProcess = 0;
   generatedFile.file = '';
   generatedFile.url = '';
@@ -86,14 +90,21 @@ const updateFormattedTime = () => {
   const seconds = Math.floor((indicators.overallElapsedTime % 60000) / 1000);
   const milliseconds = Math.floor((indicators.overallElapsedTime % 1000));
 
-  formattedTime.value = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
+  formattedTime.value = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(2, '0')}`;
 };
 
 watch(() => indicators.overallElapsedTime, updateFormattedTime);
 
+watch(stopAllProcessing, async () => {
+  if (stopAllProcessing.value) {
+    await terminateAll();
+    stopTimer();
+  }
+})
+
 const OCRlogger = (log: LoggerMessage) => {
   loggerObject.value = { ...log };
-  loggerObject.value.status = _.startCase(log.status);
+  loggerObject.value.status = log.status;
 
   if (loggerObject.value.jobId) {
     indicators.individualProcess = loggerObject.value.progress * 100;
@@ -105,18 +116,25 @@ const OCRlogger = (log: LoggerMessage) => {
   }
 }
 
+const terminateAll = async () => {
+  loggerObject.value.status = 'Stopped';
+  await scheduler.value.terminate();
+  stopAllProcessing.value = false;
+}
+
 const uploadDialogResponse = (response: any) => {
   uploadDialogState.value = false;
 
   if (response) {
     resetIndicators();
 
-    const scheduler = Tesseract.createScheduler();
+    scheduler.value = Tesseract.createScheduler();
+    // Tesseract.setLogging(true)
 
     // Creates worker and adds to scheduler
     const workerGen = async () => {
       const worker = await Tesseract.createWorker('eng', Tesseract.OEM.DEFAULT, { logger: OCRlogger });
-      scheduler.addWorker(worker);
+      scheduler.value.addWorker(worker);
     }
 
     const workerN = 4;
@@ -133,14 +151,14 @@ const uploadDialogResponse = (response: any) => {
 
       // Add recognition jobs for each image URL
       const recognitionJobs: Array<RecognizeResult> = await Promise.all(response.images.map((image: File) => {
-        return scheduler.addJob('recognize', image)
+        return scheduler.value.addJob('recognize', image)
       }));
 
       stopTimer();
 
-      await scheduler.terminate(); // It also terminates all workers.
+      await scheduler.value.terminate(); // It also terminates all workers.
 
-      loggerObject.value.status = 'Complete';
+      loggerObject.value.status = 'Completed';
 
       const results: Array<Page> = recognitionJobs.map((job: any) => job.data);
 
@@ -154,9 +172,12 @@ const uploadDialogResponse = (response: any) => {
           items: []
         };
 
-        value.lines.forEach((line: Line) => {
+        const lines = value.lines.filter((_: Line, index: number) => index > value.lines.findIndex((line: Line) => line.text.includes('DESCRIPTION')));
+
+        lines.forEach((line: Line) => {
           const condition1: RegExpMatchArray = JSON.stringify(line.text).match(/(?<=\s)(\d+)(?=\\n)/);
           const condition2 = parseFloat(line.words.map(((word: Word) => word.text)).pop());
+
 
           if (condition1 && condition1[0] && condition2) {
             const itemTotal = parseInt(condition1[0]);
@@ -211,7 +232,8 @@ const uploadDialogResponse = (response: any) => {
   <div class="page">
     <div class="content">
       <div class="flex">
-        <v-btn prepend-icon="mdi-upload" color="secondary" variant="elevated" @click="uploadDialogState = true;">
+        <v-btn prepend-icon="mdi-upload" color="primary" variant="elevated" @click="uploadDialogState = true;"
+          :disabled="['recognizing text', 'initializing api', 'loading language traineddata', 'initializing tesseract', 'loading tesseract core', 'Stopped'].includes(loggerObject.status)">
           Upload Invoices
         </v-btn>
 
@@ -220,17 +242,19 @@ const uploadDialogResponse = (response: any) => {
         </upload-dialog>
       </div>
 
-      <h3 class="my-6"><strong>Current Status: </strong>{{ loggerObject.status }} </h3>
+      <h3 class="my-6"><strong>Current Status: </strong>{{ _.startCase(loggerObject.status) }} </h3>
 
       <h3 class="mb-2">Individual Progress:</h3>
-      <v-progress-linear class="mb-12" v-model="indicators.individualProcess" color="green" height="20" rounded>
+      <v-progress-linear class="mb-12" v-model="indicators.individualProcess"
+        :color="indicators.overallProcess < 100 ? '#3fbbd3' : 'success'" height="20" rounded>
         <template v-slot:default="{ value }">
           <strong>{{ Math.ceil(value) }}%</strong>
         </template>
       </v-progress-linear>
 
       <h3 class="mb-2">Overall Progress:</h3>
-      <v-progress-linear v-model="indicators.overallProcess" color="green" height="20" rounded>
+      <v-progress-linear v-model="indicators.overallProcess"
+        :color="indicators.overallProcess < 100 ? 'accent' : 'success'" height="20" rounded>
         <template v-slot:default="{ value }">
           <strong>{{ Math.ceil(value) }}%</strong>
         </template>
@@ -238,13 +262,20 @@ const uploadDialogResponse = (response: any) => {
 
       <h3 class="mt-6 mb-14">Total Time Elapsed: <strong>{{ formattedTime }}</strong></h3>
 
-      <div class="grid grid-cols-2 gap-28">
-        <v-btn prepend-icon="mdi-undo" color="accent" @click="resetIndicators">
+      <div class="flex flex-col md:flex-row box-border gap-6" :style="{ width: 'calc(100% - 20px)' }">
+        <v-btn class="flex w-full md:w-1/2" prepend-icon="mdi-undo" color="accent" @click="resetIndicators"
+          :disabled="['recognizing text', 'initializing api', 'loading language traineddata', 'initializing tesseract', 'loading tesseract core'].includes(loggerObject.status)">
           Reset
         </v-btn>
 
-        <v-btn v-if="generatedFile.file" prepend-icon="mdi-download" color="primary-darken-1" variant="elevated" :href="generatedFile.url" download="EPI-USE INV OCR">
-          Download Spreadsheet
+        <v-btn v-if="generatedFile.file" prepend-icon="mdi-download" class="flex w-full md:w-1/2" color="primary-darken-1"
+          variant="elevated" :href="generatedFile.url" download="EPI-USE INV OCR">
+          Download
+        </v-btn>
+
+        <v-btn v-if="loggerObject.status !== 'Completed' && loggerObject.status !== 'Ready' && loggerObject.status !== 'Stopped'" prepend-icon="mdi-cancel"
+          class="flex w-full md:w-1/2" color="error" variant="elevated" @click="stopAllProcessing = true">
+          Stop
         </v-btn>
       </div>
     </div>
@@ -252,7 +283,7 @@ const uploadDialogResponse = (response: any) => {
 </template>
 <style lang="scss" scoped>
 .page {
-  background: whitesmoke;
+  background: whitemdoke;
 }
 
 .icon {
