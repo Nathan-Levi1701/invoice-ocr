@@ -213,18 +213,30 @@ const exportToExcel = (data: Array<any>, extras?: any) => {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet();
 
+  const currencySymbol = '$';
+  const currencyFormatting = `_("${currencySymbol}"* #,##0.00_);_("${currencySymbol}"* (#,##0.00);_("${currencySymbol}"* "-"??_);_(@_)`;
+
   data.forEach((row: { items: Array<any>, totalCost: number, invoiceNumber: string }) => {
-    sheet.addRow(['DESCRIPTION', 'TOTAL']);
+    sheet.addRow(['DESCRIPTION', 'TOTAL']);  
     row.items.forEach((item: any) => {
       sheet.addRow([item.description, item.itemTotal])
     });
+    
     sheet.addRow('');
     sheet.addRow(['SUBTOTAL:', row.totalCost]);
     sheet.addRow('');
   });
 
   sheet.addRow('');
-  sheet.addRow(['GRAND TOTAL:', extras.grandTotal])
+  sheet.addRow(['GRAND TOTAL:', extras.grandTotal]);
+
+  sheet.eachRow((row: ExcelJS.Row) => {
+    const cell = row.getCell('B');
+    if(cell.value && parseFloat(cell.value.toString())) {
+      cell.numFmt = currencyFormatting;
+    }
+  })
+
 
   workbook.xlsx.writeBuffer().then((response: BlobPart) => {
     const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
