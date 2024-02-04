@@ -1,0 +1,25 @@
+{
+  "extends": "@antfu",
+  "parserOptions": { "ecmaVersion": 2020 }, 
+  "rules": { 
+    "no-unused-vars" :"off",
+    "no-alert": "off",
+    "import/no-named-as-default": "off",
+    "no-redeclare": "off",
+    "curly": "off",
+    "no-trailing-spaces": "off",
+    "no-undef": "off",
+    "no-new": "off",
+    "newline-per-chained-call": "off",
+    "linebreak-style":"off",
+    "padding-line-between-statements": "off",
+    "operator-linebreak": "off",
+    "no-console": "off",
+    "max-statements-per-line": "off",
+    "promise/param-names": "off",
+    "vue/first-attribute-linebreak": ["warn", {
+      "singleline": "beside",
+      "multiline": "beside"
+    }]
+  }
+}
