@@ -51,9 +51,8 @@ export default defineConfig({
     VitePWA({
       includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Rotek Dog Training Club',
-        short_name: 'Rotek Dog Club',
-        description: 'The Rotek Club, is a Dog Training Club, registered member of KUSA, focusing mainly on the International Sport of IGP.',
+        name: 'EPI-USE Invoice OCR Tool',
+        short_name: 'EPI-USE Invoice OCR Tool',
         theme_color: '#ffffff',
         icons: [
           {
@@ -85,7 +84,6 @@ export default defineConfig({
       generateSitemap(
         {
           robots: [{ userAgent: '*', allow: '/' }],
-          hostname: 'https://beta.rotekclub.co.za',
         })
     },
   },
@@ -98,9 +96,6 @@ export default defineConfig({
     exclude: [
       '@vuetify/loader-shared/runtime',
       'vuetify',
-      'v-calendar',
-      'vue-recaptcha',
-      'vue3-signature'
     ],
   },
 })

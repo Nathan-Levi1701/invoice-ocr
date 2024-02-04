@@ -10,7 +10,6 @@ declare module 'vue' {
     ConfirmDialog: typeof import('./components/ConfirmDialog.vue')['default']
     Footer: typeof import('./components/Footer.vue')['default']
     Header: typeof import('./components/Header.vue')['default']
-    'IconMdi:chevronRight': typeof import('~icons/mdi/chevron-right')['default']
     LoaderOverlay: typeof import('./components/LoaderOverlay.vue')['default']
     NotFound404: typeof import('./components/NotFound404.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
