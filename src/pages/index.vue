@@ -122,108 +122,115 @@ const terminateAll = async () => {
   stopAllProcessing.value = false;
 }
 
-const uploadDialogResponse = (response: any) => {
+const startOCR = async (data: any) => {
+  scheduler.value = Tesseract.createScheduler();
+
+  // Creates worker and adds to scheduler
+  const workerGen = async () => {
+    const worker = await Tesseract.createWorker('eng', Tesseract.OEM.DEFAULT, { logger: OCRlogger });
+    scheduler.value.addWorker(worker);
+  }
+
+  const workerN = 4;
+  const resArr = Array(workerN);
+  for (let i = 0; i < workerN; i++) {
+    resArr[i] = workerGen();
+  }
+
+  await Promise.all(resArr);
+
+  indicators.queueLength = data.length;
+
+  startTimer();
+
+  // Add recognition jobs for each image URL
+  const recognitionJobs: Array<RecognizeResult> = await Promise.all(data.map((image: File) => {
+    return scheduler.value.addJob('recognize', image)
+  }));
+
+  stopTimer();
+
+  await scheduler.value.terminate(); // It also terminates all workers.
+
+  loggerObject.value.status = 'Completed';
+
+  return recognitionJobs;
+}
+
+const handleOCRResult = (recognitionJobs: Array<any>) => {
+  const results: Array<Page> = recognitionJobs.map((job: any) => job.data);
+
+  const invoices: Array<any> = [{}];
+  let grandTotal: number = 0;
+
+  results.forEach((value: Page, invIndex: number) => {
+    let totalCost: number = 0;
+
+    invoices[invIndex] = {
+      items: []
+    };
+
+    const lines = value.lines.filter((_: Line, index: number) => index > value.lines.findIndex((line: Line) => line.text.includes('DESCRIPTION')));
+
+    lines.forEach((line: Line) => {
+      const condition1: RegExpMatchArray = JSON.stringify(line.text).match(/(?<=\s)(\d+)(?=\\n)/);
+      const condition2 = parseFloat(line.words.map(((word: Word) => word.text)).pop());
+
+
+      if (condition1 && condition1[0] && condition2) {
+        const itemTotal = parseInt(condition1[0]);
+
+        if (itemTotal && itemTotal > 0) {
+          totalCost += itemTotal;
+          grandTotal += itemTotal;
+        }
+
+        invoices[invIndex]['items'].push({
+          description: line.words.map((word: Word) => word.text).slice(0, -1).join(' '),
+          itemTotal
+        });
+
+        invoices[invIndex]['totalCost'] = totalCost;
+      }
+    });
+  });
+
+  return [invoices, grandTotal];
+}
+
+const uploadDialogResponse = async (response: any) => {
   uploadDialogState.value = false;
 
   if (response) {
     resetIndicators();
-
-    scheduler.value = Tesseract.createScheduler();
-    // Tesseract.setLogging(true)
-
-    // Creates worker and adds to scheduler
-    const workerGen = async () => {
-      const worker = await Tesseract.createWorker('eng', Tesseract.OEM.DEFAULT, { logger: OCRlogger });
-      scheduler.value.addWorker(worker);
-    }
-
-    const workerN = 4;
-    (async () => {
-      const resArr = Array(workerN);
-      for (let i = 0; i < workerN; i++) {
-        resArr[i] = workerGen();
-      }
-      await Promise.all(resArr);
-
-      indicators.queueLength = response.images.length;
-
-      startTimer();
-
-      // Add recognition jobs for each image URL
-      const recognitionJobs: Array<RecognizeResult> = await Promise.all(response.images.map((image: File) => {
-        return scheduler.value.addJob('recognize', image)
-      }));
-
-      stopTimer();
-
-      await scheduler.value.terminate(); // It also terminates all workers.
-
-      loggerObject.value.status = 'Completed';
-
-      const results: Array<Page> = recognitionJobs.map((job: any) => job.data);
-
-      let invoices: Array<any> = [{}];
-      let grandTotal: number = 0;
-
-      results.forEach((value: Page, invIndex: number) => {
-        let totalCost: number = 0;
-
-        invoices[invIndex] = {
-          items: []
-        };
-
-        const lines = value.lines.filter((_: Line, index: number) => index > value.lines.findIndex((line: Line) => line.text.includes('DESCRIPTION')));
-
-        lines.forEach((line: Line) => {
-          const condition1: RegExpMatchArray = JSON.stringify(line.text).match(/(?<=\s)(\d+)(?=\\n)/);
-          const condition2 = parseFloat(line.words.map(((word: Word) => word.text)).pop());
-
-
-          if (condition1 && condition1[0] && condition2) {
-            const itemTotal = parseInt(condition1[0]);
-
-            if (itemTotal && itemTotal > 0) {
-              totalCost += itemTotal;
-              grandTotal += itemTotal;
-            }
-
-            invoices[invIndex]['items'].push({
-              description: line.words.map((word: Word) => word.text).slice(0, -1).join(' '),
-              itemTotal
-            });
-
-            invoices[invIndex]['totalCost'] = totalCost;
-          }
-        })
-      })
-
-      exportToExcel(invoices, { grandTotal });
-    })();
+    const recognitionJobs = await startOCR(response.images)
+    const [invoices, grandTotal] = handleOCRResult(recognitionJobs);
+    exportToExcel(invoices as Array<any>, { grandTotal });
   }
+}
 
-  const exportToExcel = (data: Array<any>, extras?: any) => {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet();
+const exportToExcel = (data: Array<any>, extras?: any) => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet();
 
-    data.forEach((row: { items: Array<any>, totalCost: number, invoiceNumber: string }) => {
-      sheet.addRow(['DESCRIPTION', 'TOTAL']);
-      row.items.forEach((item: any) => {
-        sheet.addRow([item.description, item.itemTotal])
-      });
-      sheet.addRow('');
-      sheet.addRow(['SUBTOTAL:', row.totalCost]);
-      sheet.addRow('');
+  data.forEach((row: { items: Array<any>, totalCost: number, invoiceNumber: string }) => {
+    sheet.addRow(['DESCRIPTION', 'TOTAL']);
+    row.items.forEach((item: any) => {
+      sheet.addRow([item.description, item.itemTotal])
     });
-
     sheet.addRow('');
-    sheet.addRow(['GRAND TOTAL:', extras.grandTotal])
+    sheet.addRow(['SUBTOTAL:', row.totalCost]);
+    sheet.addRow('');
+  });
 
-    workbook.xlsx.writeBuffer().then((response: BlobPart) => {
-      const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-      generatedFile.file = new File([blob], 'EPI-USE INV OCR', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-      generatedFile.url = URL.createObjectURL(generatedFile.file);
-    })
-  }
+  sheet.addRow('');
+  sheet.addRow(['GRAND TOTAL:', extras.grandTotal])
+
+  workbook.xlsx.writeBuffer().then((response: BlobPart) => {
+    const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    generatedFile.file = new File([blob], 'EPI-USE INV OCR', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    generatedFile.url = URL.createObjectURL(generatedFile.file);
+  })
 }
 
 </script>
@@ -273,8 +280,10 @@ const uploadDialogResponse = (response: any) => {
           Download
         </v-btn>
 
-        <v-btn v-if="loggerObject.status !== 'Completed' && loggerObject.status !== 'Ready' && loggerObject.status !== 'Stopped'" prepend-icon="mdi-cancel"
-          class="flex w-full md:w-1/2" color="error" variant="elevated" @click="stopAllProcessing = true">
+        <v-btn
+          v-if="loggerObject.status !== 'Completed' && loggerObject.status !== 'Ready' && loggerObject.status !== 'Stopped'"
+          prepend-icon="mdi-cancel" class="flex w-full md:w-1/2" color="error" variant="elevated"
+          @click="stopAllProcessing = true">
           Stop
         </v-btn>
       </div>
