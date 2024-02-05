@@ -26,4 +26,4 @@ To build the App, run:
 npm run build
 ```
 
-You will see the generated file in `dist` that ready to be served.
+You will see the generated files in `dist` that are ready to be served.
