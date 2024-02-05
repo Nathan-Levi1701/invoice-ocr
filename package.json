@@ -8,8 +8,7 @@
     "preview": "vite preview",
     "preview-https": "serve dist",
     "typecheck": "vue-tsc --noEmit",
-    "deploy": "firebase deploy",
-    "upgrade-int": "yarn upgrade-interactive --latest"
+    "deploy": "firebase deploy"
   },
   "devDependencies": {
     "@iconify-json/mdi": "^1.1.64",
@@ -36,7 +35,7 @@
     "typescript": "^5.3.3",
     "unplugin-icons": "^0.18.3",
     "unplugin-vue-components": "^0.25.2",
-    "vite": "^5.0.12",
+    "vite": "^4.5.2",
     "vite-plugin-pages": "^0.32.0",
     "vite-plugin-pwa": "^0.17.5",
     "vite-plugin-vue-layouts": "^0.8.0",
